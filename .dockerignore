@@ -1,0 +1,23 @@
+# Files and directories to ignore in Docker builds
+
+# Go
+*.exe
+*.o
+*.a
+*.test
+*.prof
+
+# Git
+.git
+.gitignore
+
+# IDE/Editor specific files
+.vscode
+.idea
+
+# Dependency management files
+vendor/
+Godeps/
+
+.env
+.env.example
