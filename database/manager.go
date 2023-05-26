@@ -21,17 +21,29 @@ type Object struct {
 	ContentType string
 }
 
-var DbUser = ""
-var DbPass = ""
-var DbHost = ""
-var DbPort = ""
-var DbName = ""
+type Database struct {
+	DbUser string
+	DbPass string
+	DbHost string
+	DbPort string
+	DbName string
+}
+
+func Builder() *Database {
+	return &Database{
+		DbUser: getEnvironmentUsername(),
+		DbHost: getEnvironmentHost(),
+		DbPass: getEnvironmentPassword(),
+		DbName: getEnvironmentDatabaseName(),
+		DbPort: getEnvironmentPort(),
+	}
+}
 
 const DbOption string = "?charset=utf8"
 
-func tableExists(db *sql.DB, databaseName string, tableName string) (bool, error) {
+func (d *Database) tableExists(db *sql.DB, tableName string) (bool, error) {
 	var exists bool
-	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s')", databaseName, tableName)
+	query := fmt.Sprintf("SELECT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_SCHEMA = '%s' AND TABLE_NAME = '%s')", d.DbName, tableName)
 
 	err := db.QueryRow(query).Scan(&exists)
 	if err != nil && err != sql.ErrNoRows {
@@ -68,26 +80,15 @@ func getEnvironmentDatabaseName() string {
 	return getEnvironmentVariable("DB_NAME")
 }
 
-func initEnvVariable() {
-	if DbUser == "" || DbPass == "" || DbHost == "" || DbName == "" || DbPort == "" {
-		DbUser = getEnvironmentUsername()
-		DbPass = getEnvironmentPassword()
-		DbHost = getEnvironmentHost()
-		DbName = getEnvironmentDatabaseName()
-		DbPort = getEnvironmentPort()
-	}
-}
-
-func openDatabase() *sql.DB {
-	initEnvVariable()
-	dsn := DbUser + ":" + DbPass + "@" + DbHost + DbPort + "/" + DbName + DbOption
+func (d *Database) openDatabase() *sql.DB {
+	dsn := d.DbUser + ":" + d.DbPass + "@" + d.DbHost + d.DbPort + "/" + d.DbName + DbOption
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	bucketExists, _ := tableExists(db, DbName, "Buckets")
-	objectExists, _ := tableExists(db, DbName, "Objects")
+	bucketExists, _ := d.tableExists(db, "Buckets")
+	objectExists, _ := d.tableExists(db, "Objects")
 
 	if bucketExists == false || objectExists == false {
 		err = migrate(db)
@@ -122,8 +123,8 @@ func migrate(db *sql.DB) error {
 	return err
 }
 
-func insertBucket(bucket *Bucket) error {
-	db := openDatabase()
+func (d *Database) InsertBucket(bucket *Bucket) error {
+	db := d.openDatabase()
 	res, err := db.Exec("INSERT INTO Buckets (name) VALUES (?)", bucket.Name)
 	if err != nil {
 		return err
@@ -137,8 +138,8 @@ func insertBucket(bucket *Bucket) error {
 	return nil
 }
 
-func insertObject(object *Object) error {
-	db := openDatabase()
+func (d *Database) insertObject(object *Object) error {
+	db := d.openDatabase()
 	stmt, err := db.Prepare("INSERT INTO Objects (bucket_id, key, object_data, content_type) VALUES (?, ?, ?, ?)")
 	if err != nil {
 		return err
@@ -162,8 +163,8 @@ func insertObject(object *Object) error {
 	return nil
 }
 
-func selectBuckets() ([]Bucket, error) {
-	db := openDatabase()
+func (d *Database) selectBuckets() ([]Bucket, error) {
+	db := d.openDatabase()
 	rows, err := db.Query("SELECT id, name FROM Buckets")
 	if err != nil {
 		return nil, err

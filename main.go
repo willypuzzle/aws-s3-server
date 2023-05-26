@@ -1,9 +1,11 @@
 package main
 
 import (
+	"aws-s3-server/database"
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -27,10 +29,13 @@ type Content struct {
 
 var buckets = make(map[string]ListBucketResult)
 
+var DB *database.Database
+
 func main() {
-	http.HandleFunc("/Bucket", CreateBucket)
-	http.HandleFunc("/Bucket/", PutObject)
-	http.HandleFunc("/Bucket", ListObjects)
+	DB = database.Builder()
+	http.HandleFunc("/", CreateBucket)
+	http.HandleFunc("/", PutObject)
+	http.HandleFunc("/", ListObjects)
 
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
@@ -39,17 +44,27 @@ func main() {
 }
 
 func CreateBucket(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPut {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	path := r.URL.Path
+	if r.Method != http.MethodPut || strings.Count(path, "/") != 1 {
 		return
 	}
 
-	bucketName := r.URL.Path[len("/Bucket/"):]
-	buckets[bucketName] = ListBucketResult{Name: bucketName}
+	bucketName := path[len("/"):]
+	var bucket = &database.Bucket{
+		Name: bucketName,
+	}
+
+	// TODO check if the bucket just exists
+
+	err1 := DB.InsertBucket(bucket)
+	if err1 != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
-	_, err := fmt.Fprintf(w, "Bucket %s created\n", bucketName)
-	if err != nil {
+	_, err2 := fmt.Fprintf(w, "Bucket %s created\n", bucketName)
+	if err2 != nil {
 		return
 	}
 }
