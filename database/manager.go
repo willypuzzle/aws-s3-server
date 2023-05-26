@@ -19,6 +19,7 @@ type Object struct {
 	Key         string
 	Data        []byte
 	ContentType string
+	Uuid        string
 }
 
 type Database struct {
@@ -119,9 +120,10 @@ func migrate(db *sql.DB) {
 	migration2 := `CREATE TABLE IF NOT EXISTS Objects (
 			id INT PRIMARY KEY AUTO_INCREMENT,
 			bucket_id INT NOT NULL,
-			key_path VARCHAR(255) NOT NULL,
+			key_path VARCHAR(255) NOT NULL UNIQUE,
 			object_data BLOB,
 		    content_type VARCHAR(255) NOT NULL,
+    		uuid VARCHAR(255) NOT NULL UNIQUE,
 			FOREIGN KEY (bucket_id) REFERENCES Buckets(id)
 		);
 	`
@@ -132,20 +134,27 @@ func migrate(db *sql.DB) {
 	}
 }
 
-func (d *Database) BucketExists(name string) (bool, error) {
+func (d *Database) BucketExists(name string) (int, error) {
 	db := d.openDatabase()
 	rows, err := db.Query("SELECT id FROM Buckets WHERE name = (?)", name)
 	if err != nil {
-		return false, err
+		return 0, err
 	}
 	defer func(rows *sql.Rows) {
 		err := rows.Close()
 		if err != nil {
-
+			fmt.Println("Unable to close rows")
 		}
 	}(rows)
 
-	return rows.Next(), nil
+	var id int
+	if rows.Next() == true {
+		rows.Scan(&id)
+	} else {
+		return 0, nil
+	}
+
+	return id, nil
 }
 
 func (d *Database) InsertBucket(bucket *Bucket) error {
@@ -163,9 +172,11 @@ func (d *Database) InsertBucket(bucket *Bucket) error {
 	return nil
 }
 
-func (d *Database) insertObject(object *Object) error {
+func (d *Database) InsertOrUpdateObject(object *Object) error {
 	db := d.openDatabase()
-	stmt, err := db.Prepare("INSERT INTO Objects (bucket_id, key_path, object_data, content_type) VALUES (?, ?, ?, ?)")
+	stmt, err := db.Prepare(
+		"REPLACE INTO Objects (bucket_id, key_path, object_data, content_type, uuid) VALUES (?, ?, ?, ?, ?)",
+	)
 	if err != nil {
 		return err
 	}
@@ -175,7 +186,7 @@ func (d *Database) insertObject(object *Object) error {
 
 		}
 	}(stmt)
-	res, err := stmt.Exec(object.BucketId, object.Key, object.Data, object.ContentType)
+	res, err := stmt.Exec(object.BucketId, object.Key, object.Data, object.ContentType, object.Uuid)
 	if err != nil {
 		return err
 	}
