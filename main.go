@@ -33,9 +33,7 @@ var DB *database.Database
 
 func main() {
 	DB = database.Builder()
-	http.HandleFunc("/", CreateBucket)
-	http.HandleFunc("/", PutObject)
-	http.HandleFunc("/", ListObjects)
+	http.HandleFunc("/", ManageRoute)
 
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
@@ -43,18 +41,27 @@ func main() {
 	}
 }
 
-func CreateBucket(w http.ResponseWriter, r *http.Request) {
+func ManageRoute(w http.ResponseWriter, r *http.Request) {
 	path := r.URL.Path
-	if r.Method != http.MethodPut || strings.Count(path, "/") != 1 {
+	fmt.Println(fmt.Sprintf("Request received on %s\n", path))
+	if r.Method == http.MethodPut && strings.Count(path, "/") == 1 {
+		CreateBucket(w, path[len("/"):])
+		return
+	}
+}
+
+func CreateBucket(w http.ResponseWriter, bucketName string) {
+	check, _ := DB.BucketExists(bucketName)
+
+	if check == true {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		fmt.Fprintf(w, "Bucket %s just exists\n", bucketName)
 		return
 	}
 
-	bucketName := path[len("/"):]
 	var bucket = &database.Bucket{
 		Name: bucketName,
 	}
-
-	// TODO check if the bucket just exists
 
 	err1 := DB.InsertBucket(bucket)
 	if err1 != nil {
@@ -63,10 +70,7 @@ func CreateBucket(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusOK)
-	_, err2 := fmt.Fprintf(w, "Bucket %s created\n", bucketName)
-	if err2 != nil {
-		return
-	}
+	fmt.Println(fmt.Sprintf("Bucket %s created\n", bucketName))
 }
 
 func PutObject(w http.ResponseWriter, r *http.Request) {

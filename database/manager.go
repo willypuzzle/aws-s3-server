@@ -81,7 +81,7 @@ func getEnvironmentDatabaseName() string {
 }
 
 func (d *Database) openDatabase() *sql.DB {
-	dsn := d.DbUser + ":" + d.DbPass + "@" + d.DbHost + d.DbPort + "/" + d.DbName + DbOption
+	dsn := d.DbUser + ":" + d.DbPass + "@tcp(" + d.DbHost + ":" + d.DbPort + ")/" + d.DbName + DbOption
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {
 		log.Fatal(err)
@@ -91,7 +91,7 @@ func (d *Database) openDatabase() *sql.DB {
 	objectExists, _ := d.tableExists(db, "Objects")
 
 	if bucketExists == false || objectExists == false {
-		err = migrate(db)
+		migrate(db)
 	}
 
 	return db
@@ -104,23 +104,48 @@ func closeDatabase(db *sql.DB) {
 	}
 }
 
-func migrate(db *sql.DB) error {
-	migration := `
+func migrate(db *sql.DB) {
+	migration1 := `
 		CREATE TABLE IF NOT EXISTS Buckets (
 			id INT PRIMARY KEY AUTO_INCREMENT,
-			name VARCHAR(255) NOT NULL
-		);
-		CREATE TABLE IF NOT EXISTS Objects (
+			name VARCHAR(255) NOT NULL UNIQUE
+		);`
+	_, err1 := db.Exec(migration1)
+	if err1 != nil {
+		fmt.Println("Migration of Buckets failed.")
+		os.Exit(1)
+	}
+
+	migration2 := `CREATE TABLE IF NOT EXISTS Objects (
 			id INT PRIMARY KEY AUTO_INCREMENT,
 			bucket_id INT NOT NULL,
-			key VARCHAR(255) NOT NULL,
+			key_path VARCHAR(255) NOT NULL,
 			object_data BLOB,
-		    content_type VARCHAR(255) NOT NULL
+		    content_type VARCHAR(255) NOT NULL,
 			FOREIGN KEY (bucket_id) REFERENCES Buckets(id)
 		);
 	`
-	_, err := db.Exec(migration)
-	return err
+	_, err2 := db.Exec(migration2)
+	if err2 != nil {
+		fmt.Println("Migration of Objects failed.")
+		os.Exit(1)
+	}
+}
+
+func (d *Database) BucketExists(name string) (bool, error) {
+	db := d.openDatabase()
+	rows, err := db.Query("SELECT id FROM Buckets WHERE name = (?)", name)
+	if err != nil {
+		return false, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	return rows.Next(), nil
 }
 
 func (d *Database) InsertBucket(bucket *Bucket) error {
@@ -140,7 +165,7 @@ func (d *Database) InsertBucket(bucket *Bucket) error {
 
 func (d *Database) insertObject(object *Object) error {
 	db := d.openDatabase()
-	stmt, err := db.Prepare("INSERT INTO Objects (bucket_id, key, object_data, content_type) VALUES (?, ?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO Objects (bucket_id, key_path, object_data, content_type) VALUES (?, ?, ?, ?)")
 	if err != nil {
 		return err
 	}
