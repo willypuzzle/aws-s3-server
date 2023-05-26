@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"aws-s3-server/database"
+	"aws-s3-server/types"
 	"fmt"
 	"net/http"
 )
@@ -15,7 +16,7 @@ func CreateBucket(DB *database.Database, w http.ResponseWriter, path string) {
 		return
 	}
 
-	var bucket = &database.Bucket{
+	var bucket = &types.Bucket{
 		Name: bucketName,
 	}
 

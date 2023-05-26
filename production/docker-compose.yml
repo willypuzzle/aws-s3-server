@@ -1,0 +1,28 @@
+version: '3'
+
+services:
+  db-production:
+    image: mysql:8.0.33-debian
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
+  app:
+    image: aws-s3-server/production
+    build:
+      context: ..
+      dockerfile: ./production/Dockerfile
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db-production
+    environment:
+      DB_HOST: db-production
+      DB_PORT: 3306
+      DB_USER: ${MYSQL_USER}
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_NAME: ${MYSQL_DATABASE}

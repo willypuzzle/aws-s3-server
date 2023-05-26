@@ -2,6 +2,7 @@ package endpoint
 
 import (
 	"aws-s3-server/database"
+	"aws-s3-server/types"
 	"crypto/md5"
 	"encoding/base64"
 	"fmt"
@@ -28,7 +29,7 @@ func PutObject(DB *database.Database, w http.ResponseWriter, r *http.Request, pa
 	fmt.Fprintf(w, `ETag: "%s"`, data.Uuid)
 }
 
-func validateAndBuildPutObject(DB *database.Database, path string, w http.ResponseWriter, r *http.Request) (*database.Object, bool) {
+func validateAndBuildPutObject(DB *database.Database, path string, w http.ResponseWriter, r *http.Request) (*types.Object, bool) {
 	pathData, check1 := validatePath(w, path)
 	if check1 == false {
 		return nil, false
@@ -48,7 +49,7 @@ func validateAndBuildPutObject(DB *database.Database, path string, w http.Respon
 	object := data
 	uuidValue := uuid.New()
 
-	return &database.Object{
+	return &types.Object{
 		BucketId:    bucketId,
 		Key:         keyPath,
 		Data:        object,
@@ -115,7 +116,7 @@ func validatePath(w http.ResponseWriter, path string) ([]string, bool) {
 		}
 	}
 
-	data := []string{bucket, "/" + strings.Join(pathData, "/")}
+	data := []string{bucket, strings.Join(pathData, "/")}
 	return data, true
 
 }

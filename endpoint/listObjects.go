@@ -1,42 +1,23 @@
 package endpoint
 
 import (
-	"aws-s3-server/database"
+	"aws-s3-server/contracts"
+	"aws-s3-server/types"
 	"encoding/xml"
 	"net/http"
-	"time"
+	"strconv"
 )
 
-type ListBucketResult struct {
-	XMLName     xml.Name  `xml:"ListBucketResult"`
-	Name        string    `xml:"Name"`
-	Prefix      string    `xml:"Prefix"`
-	Marker      string    `xml:"Marker"`
-	MaxKeys     int       `xml:"MaxKeys"`
-	IsTruncated bool      `xml:"IsTruncated"`
-	Contents    []Content `xml:"Contents"`
-}
+func ListObjects(DB contracts.Database, w http.ResponseWriter, r *http.Request, path string) {
 
-type Content struct {
-	XMLName      xml.Name  `xml:"Content"`
-	Key          string    `xml:"Key"`
-	LastModified time.Time `xml:"LastModified"`
-	ETag         string    `xml:"ETag"`
-	Size         int       `xml:"Size"`
-}
-
-var buckets = make(map[string]ListBucketResult)
-
-func ListObjects(DB *database.Database, w http.ResponseWriter, r *http.Request, path string) {
-	bucketName := r.URL.Path[len("/Bucket/"):]
-	bucket, ok := buckets[bucketName]
-	if !ok {
-		http.Error(w, "Bucket not found", http.StatusNotFound)
+	list, check := validatePathAndRequest(path, r, w)
+	if check == false {
 		return
 	}
 
-	// List objects from bucket. In this case, just marshalling the bucket object into XML
-	xmlBytes, err := xml.MarshalIndent(bucket, "", "  ")
+	list.Contents, _ = DB.SelectContents(list.Name, list.Prefix)
+
+	xmlBytes, err := xml.MarshalIndent(list, "", "  ")
 	if err != nil {
 		http.Error(w, "Error processing request", http.StatusInternalServerError)
 		return
@@ -47,4 +28,41 @@ func ListObjects(DB *database.Database, w http.ResponseWriter, r *http.Request, 
 	if write != nil {
 		return
 	}
+}
+
+func validatePathAndRequest(path string, r *http.Request, w http.ResponseWriter) (*types.ListBucketResult, bool) {
+	bucketName := path[len("/"):]
+	if len(bucketName) == 0 {
+		http.Error(w, "Wrong bucket", http.StatusUnprocessableEntity)
+		return nil, false
+	}
+	query := r.URL.Query()
+
+	marker := ""
+	prefix := ""
+	maxKeys := int64(0)
+
+	markerValue := query["marker"]
+	prefixValue := query["prefix"]
+	maxKeysValue := query["max-keys"]
+
+	if len(markerValue) > 0 {
+		marker = markerValue[0]
+	}
+
+	if len(prefixValue) > 0 {
+		prefix = prefixValue[0]
+	}
+
+	if len(maxKeysValue) > 0 {
+		maxKeys, _ = strconv.ParseInt(maxKeysValue[0], 10, 12)
+	}
+
+	return &types.ListBucketResult{
+		Name:        bucketName,
+		IsTruncated: false,
+		Marker:      marker,
+		MaxKeys:     maxKeys,
+		Prefix:      prefix,
+	}, true
 }

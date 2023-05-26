@@ -10,6 +10,7 @@
 # Git
 .git
 .gitignore
+.dockerignore
 
 # IDE/Editor specific files
 .vscode
@@ -19,5 +20,8 @@
 vendor/
 Godeps/
 
-.env
+develop/.env
 .env.example
+
+develop/*
+production/*

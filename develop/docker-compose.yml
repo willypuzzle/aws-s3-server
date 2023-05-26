@@ -1,8 +1,10 @@
 version: '3'
 
 services:
-  db:
+  db-developing:
     image: mysql:8.0.33-debian
+    ports:
+      - "3306:3306"
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE}
@@ -10,13 +12,16 @@ services:
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
   app:
-    build: .
+    image: aws-s3-server/develop
+    build:
+      context: ..
+      dockerfile: ./develop/Dockerfile
     ports:
       - "8080:8080"
       - "8000:8000"
       - "40000:40000"
     depends_on:
-      - db
+      - db-developing
     environment:
       DB_HOST: db
       DB_PORT: 3306

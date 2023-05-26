@@ -1,26 +1,14 @@
 package database
 
 import (
+	"aws-s3-server/types"
 	"database/sql"
 	"fmt"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"os"
+	"strings"
 )
-
-type Bucket struct {
-	Id   int
-	Name string
-}
-
-type Object struct {
-	Id          int
-	BucketId    int
-	Key         string
-	Data        []byte
-	ContentType string
-	Uuid        string
-}
 
 type Database struct {
 	DbUser string
@@ -40,7 +28,7 @@ func Builder() *Database {
 	}
 }
 
-const DbOption string = "?charset=utf8"
+const DbOption string = "?charset=utf8&parseTime=true"
 
 func (d *Database) tableExists(db *sql.DB, tableName string) (bool, error) {
 	var exists bool
@@ -101,7 +89,7 @@ func (d *Database) openDatabase() *sql.DB {
 func closeDatabase(db *sql.DB) {
 	err := db.Close()
 	if err != nil {
-
+		fmt.Println("Database closing failed")
 	}
 }
 
@@ -124,6 +112,9 @@ func migrate(db *sql.DB) {
 			object_data BLOB,
 		    content_type VARCHAR(255) NOT NULL,
     		uuid VARCHAR(255) NOT NULL UNIQUE,
+            file_size INT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 			FOREIGN KEY (bucket_id) REFERENCES Buckets(id)
 		);
 	`
@@ -157,7 +148,7 @@ func (d *Database) BucketExists(name string) (int, error) {
 	return id, nil
 }
 
-func (d *Database) InsertBucket(bucket *Bucket) error {
+func (d *Database) InsertBucket(bucket *types.Bucket) error {
 	db := d.openDatabase()
 	res, err := db.Exec("INSERT INTO Buckets (name) VALUES (?)", bucket.Name)
 	if err != nil {
@@ -172,10 +163,11 @@ func (d *Database) InsertBucket(bucket *Bucket) error {
 	return nil
 }
 
-func (d *Database) InsertOrUpdateObject(object *Object) error {
+func (d *Database) InsertOrUpdateObject(object *types.Object) error {
+	object.Size = len(object.Data)
 	db := d.openDatabase()
 	stmt, err := db.Prepare(
-		"REPLACE INTO Objects (bucket_id, key_path, object_data, content_type, uuid) VALUES (?, ?, ?, ?, ?)",
+		"REPLACE INTO Objects (bucket_id, key_path, object_data, content_type, uuid, file_size) VALUES (?, ?, ?, ?, ?, ?)",
 	)
 	if err != nil {
 		return err
@@ -186,11 +178,12 @@ func (d *Database) InsertOrUpdateObject(object *Object) error {
 
 		}
 	}(stmt)
-	res, err := stmt.Exec(object.BucketId, object.Key, object.Data, object.ContentType, object.Uuid)
+	res, err := stmt.Exec(object.BucketId, object.Key, object.Data, object.ContentType, object.Uuid, object.Size)
 	if err != nil {
 		return err
 	}
 	closeDatabase(db)
+
 	id, err := res.LastInsertId()
 	if err != nil {
 		return err
@@ -199,7 +192,7 @@ func (d *Database) InsertOrUpdateObject(object *Object) error {
 	return nil
 }
 
-func (d *Database) selectBuckets() ([]Bucket, error) {
+func (d *Database) selectBuckets() ([]types.Bucket, error) {
 	db := d.openDatabase()
 	rows, err := db.Query("SELECT id, name FROM Buckets")
 	if err != nil {
@@ -212,9 +205,9 @@ func (d *Database) selectBuckets() ([]Bucket, error) {
 		}
 	}(rows)
 
-	var buckets []Bucket
+	var buckets []types.Bucket
 	for rows.Next() {
-		var bucket Bucket
+		var bucket types.Bucket
 		err := rows.Scan(&bucket.Id, &bucket.Name)
 		if err != nil {
 			return nil, err
@@ -227,4 +220,39 @@ func (d *Database) selectBuckets() ([]Bucket, error) {
 	}
 
 	return buckets, nil
+}
+
+func (d *Database) SelectContents(bucketName string, prefix string) ([]types.Content, error) {
+	db := d.openDatabase()
+	rows, err := db.Query(`SELECT os.key_path, os.file_size, os.updated_at, os.uuid
+                                 FROM Buckets AS bs
+                                 INNER JOIN Objects AS os ON (bs.id = os.bucket_id)
+                                 WHERE bs.name = ? AND os.key_path LIKE ?`, bucketName, prefix+"%")
+	if err != nil {
+		return nil, err
+	}
+
+	var contents []types.Content
+	for rows.Next() {
+		var content types.Content
+		err := rows.Scan(&content.Key, &content.Size, &content.LastModified, &content.ETag)
+		if err != nil {
+			return nil, err
+		}
+		content.Key = strings.TrimPrefix(content.Key, prefix)
+		contents = append(contents, content)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+
+		}
+	}(rows)
+
+	return contents, nil
 }

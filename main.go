@@ -16,6 +16,7 @@ func main() {
 
 	err := http.ListenAndServe(":8080", nil)
 	if err != nil {
+		fmt.Println("Server Hung up")
 		return
 	}
 }
@@ -25,14 +26,11 @@ func manageRoute(w http.ResponseWriter, r *http.Request) {
 	fmt.Println(fmt.Sprintf("Request received on %s\n", path))
 	if r.Method == http.MethodPut && strings.Count(path, "/") == 1 {
 		endpoint.CreateBucket(DB, w, path)
-		return
-	}
-	if r.Method == http.MethodPut && strings.Count(path, "/") >= 2 {
+	} else if r.Method == http.MethodPut && strings.Count(path, "/") >= 2 {
 		endpoint.PutObject(DB, w, r, path)
-		return
-	}
-	if r.Method == http.MethodGet && strings.Count(path, "/") == 1 {
+	} else if r.Method == http.MethodGet && strings.Count(path, "/") == 1 {
 		endpoint.ListObjects(DB, w, r, path)
-		return
+	} else {
+		http.Error(w, "Unknown API", http.StatusBadRequest)
 	}
 }
