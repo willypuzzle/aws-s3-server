@@ -11,7 +11,7 @@ services:
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
 
-  app:
+  app-develop:
     image: aws-s3-server/develop
     build:
       context: ..
@@ -23,8 +23,8 @@ services:
     depends_on:
       - db-developing
     environment:
-      DB_HOST: db
-      DB_PORT: 3306
+      DB_HOST: "db-developing"
+      DB_PORT: "3306"
       DB_USER: ${MYSQL_USER}
       DB_PASSWORD: ${MYSQL_PASSWORD}
       DB_NAME: ${MYSQL_DATABASE}

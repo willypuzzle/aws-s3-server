@@ -6,6 +6,9 @@ Simple emulator of a simplified s3 server written in go
 - Docker
 - docker-compose
 
+### Tested on:
+- Windows 11 - WSL2
+
 ## Develop
 
 You can start a developing demo for debugging purpose. This environment is totally configured for debug.
