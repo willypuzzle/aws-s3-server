@@ -46,6 +46,9 @@ The Dockerfile of the production and the development are different.
 - Docker
 - docker-compose
 
+### Limitations
+This system is not able to store large file
+
 ### Tested on:
 - Windows 11 - WSL2
 
