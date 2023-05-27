@@ -30,3 +30,10 @@ In order to the the production image you should:
 - cd aws-s3-server
 - cp .env.example production/.env
 - docker-compose  -f ./production/docker-compose.yml up -d
+
+### Environment Variables of Production Docker image
+- DB_HOST:
+- DB_PORT:
+- DB_USER: 
+- DB_PASSWORD: 
+- DB_NAME: 
