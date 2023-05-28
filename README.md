@@ -14,6 +14,10 @@ Simple emulator of a simplified s3 server written in go
 8) Tested further development and production demo with the resolution of the final bug
 9) In between steps 7 and 8, I wrote some documentation
 10) Trying to solve the optional task
+11) Corrected documentation
+12) Implemented optional task
+13) Final test
+14) Delivery
 
 - # How this project works and how it is structured
 
