@@ -10,7 +10,7 @@ import (
 
 func ListObjects(DB contracts.Database, w http.ResponseWriter, r *http.Request, path string) {
 
-	list, check := validatePathAndRequest(path, r, w)
+	list, check := validatePathAndRequestForListObjects(path, r, w)
 	if check == false {
 		return
 	}
@@ -30,7 +30,7 @@ func ListObjects(DB contracts.Database, w http.ResponseWriter, r *http.Request, 
 	}
 }
 
-func validatePathAndRequest(path string, r *http.Request, w http.ResponseWriter) (*types.ListBucketResult, bool) {
+func validatePathAndRequestForListObjects(path string, r *http.Request, w http.ResponseWriter) (*types.ListBucketResult, bool) {
 	bucketName := path[len("/"):]
 	if len(bucketName) == 0 {
 		http.Error(w, "Wrong bucket", http.StatusUnprocessableEntity)

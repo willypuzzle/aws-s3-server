@@ -30,6 +30,8 @@ func manageRoute(w http.ResponseWriter, r *http.Request) {
 		endpoint.PutObject(DB, w, r, path)
 	} else if r.Method == http.MethodGet && strings.Count(path, "/") == 1 {
 		endpoint.ListObjects(DB, w, r, path)
+	} else if r.Method == http.MethodGet && strings.Count(path, "/") >= 2 {
+		endpoint.GetObject(DB, w, r, path)
 	} else {
 		http.Error(w, "Unknown API", http.StatusBadRequest)
 	}

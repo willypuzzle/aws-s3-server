@@ -257,3 +257,39 @@ func (d *Database) SelectContents(bucketName string, prefix string) ([]types.Con
 
 	return contents, nil
 }
+
+func (d *Database) GetObject(bucketId int, pathKey string) (*types.Object, error) {
+	db := d.openDatabase()
+	rows, err := db.Query(`SELECT id, key_path, object_data, content_type, uuid, updated_at, bucket_id 
+								 FROM Objects 
+								 WHERE bucket_id = (?) AND key_path = (?)`, bucketId, pathKey)
+	if err != nil {
+		return nil, err
+	}
+	defer func(rows *sql.Rows) {
+		err := rows.Close()
+		if err != nil {
+			fmt.Println("Unable to close rows")
+		}
+	}(rows)
+
+	var data types.Object
+	if rows.Next() == true {
+		rowErr := rows.Scan(
+			&data.Id,
+			&data.Key,
+			&data.Data,
+			&data.ContentType,
+			&data.Uuid,
+			&data.UpdatedAt,
+			&data.BucketId,
+		)
+		if rowErr != nil {
+			return nil, rowErr
+		}
+	} else {
+		return nil, nil
+	}
+
+	return &data, nil
+}
