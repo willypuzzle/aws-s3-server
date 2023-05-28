@@ -5,8 +5,8 @@ import (
 	"aws-s3-server/types"
 	"fmt"
 	"net/http"
+	"regexp"
 	"strconv"
-	"strings"
 )
 
 func GetObject(DB contracts.Database, w http.ResponseWriter, r *http.Request, path string) {
@@ -79,23 +79,17 @@ func parseRangeHeaderAndCustomizeData(data []byte, r *http.Request) ([2]int, []b
 }
 
 func parseRangeHeaderString(s string) ([2]int, bool) {
-	d := strings.Split(s, "=")
-	if len(d) < 2 {
+	r := regexp.MustCompile(`bytes=(\d+)-(\d+)`)
+	matches := r.FindStringSubmatch(s)
+	if len(matches) != 3 {
 		return [2]int{0, 0}, false
 	}
-	c := strings.Split(d[1], "-")
-	if len(c) < 2 {
-		return [2]int{0, 0}, false
-	}
-	a, err1 := strconv.ParseInt(c[0], 10, 12)
+	a, err1 := strconv.ParseInt(matches[1], 10, 12)
 	if err1 != nil {
 		return [2]int{0, 0}, false
 	}
-	b, err2 := strconv.ParseInt(c[1], 10, 12)
+	b, err2 := strconv.ParseInt(matches[2], 10, 12)
 	if err2 != nil {
-		return [2]int{0, 0}, false
-	}
-	if a >= b {
 		return [2]int{0, 0}, false
 	}
 	return [2]int{int(a), int(b)}, true
