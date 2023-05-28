@@ -13,9 +13,9 @@ Simple emulator of a simplified s3 server written in go
 7) Wrote production Docker image with its demo docker-compose.yml
 8) Tested further development and production demo with the resolution of the final bug
 9) In between steps 7 and 8, I wrote some documentation
-10) Trying to solve the optional task
+10) Trying to implement GetObject endpoint
 11) Corrected documentation
-12) Implemented optional task
+12) Implemented GetObject endpoint
 13) Final test
 14) Delivery
 
@@ -88,3 +88,46 @@ To use the production image, you should:
 ### Note:
 In the demo, all these variables are set in a .env file (that you can modify as you wish), and the database is created automatically.
 Remember to create and set these variables in a production environment (for example, in a ConfigMap of Kubernetes).
+
+## Release Notes
+
+### Command: create-bucket
+aws s3api \
+--no-sign-request \
+--endpoint-url http://localhost:8080 \
+create-bucket \
+--bucket cubbit-bucket
+
+This command works very well.
+
+### Command: put-object
+aws s3api \
+--no-sign-request \
+--endpoint-url http://localhost:8080 \
+put-object \
+--bucket cubbit-bucket \
+--key folder/cubbit-logo.png \
+--body path/to/cubbit-logo.png
+
+This command works but with a WARNING. I followed the specifications.
+
+### Command: list-object
+aws s3api \
+--no-sign-request \
+--endpoint-url http://localhost:8080 \
+list-objects \
+--bucket cubbit-bucket
+
+with and without --prefix
+
+This command gives no output at all, but I tried with Postman and the output of the endpoint is correct.
+
+### Command: get-object
+aws s3api \
+--no-sign-request \
+--endpoint-url http://localhost:8080 \
+get-object\
+--bucket cubbit-bucket \
+--key folder/cubbit-logo.png
+
+It works with and without --range. e.g. --range “bytes=12-1234567”
